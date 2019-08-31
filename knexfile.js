@@ -1,8 +1,10 @@
+//update with config settings
+
 module.exports = {
   development: {
     client: 'sqlite3',
-    connection: { filename: './database/auth.db3' },
-    useNullAsDefault: true,
+    connection: { filename: './database/auth.db3' }, //option to change this if you want a diff name to the database 
+    useNullAsDefault: true, //used to avoid warning on console
     migrations: {
       directory: './database/migrations',
       tableName: 'dbmigrations',
