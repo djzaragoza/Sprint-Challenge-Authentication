@@ -1,47 +1,31 @@
-/* 
-  complete the middleware code to check if the user is logged in
-  before granting access to the next middleware/route handler
-*/
+const jwt = require('jsonwebtoken');
+const secrets = require('../config/secrets');
 
-const db = require('../database/dbUsers');
-const bcrypt = require('bcrypt');
+const Users = require('./auth-model');
 
-//middlware to validate if the cookie is existing and valid
+module.exports = (req, res, next) => {
+  const tokenHeader = req.headers.authorization;
 
-function verifyLoggedUser(req, res, next) {
-  if(req.session && req.session.user) {
-    next();
-  } else{
-    res.status(400).json({ you: 'stay right there!'});
-  }
-}
+  if(tokenHeader) {
+    const tokenHeader = req.headers.authorization;
 
-//middleware to verify new user and create the cookie
+    if(tokenHeader) {
+      const tokenStrings = tokenHeader.split(" ");
 
-async function createCookie(req, res,next) {
-  const {username, password} = req.body;
-  try {
-    if(username && password) {
-      const [user] = await db.findByUsername(username);
-
-      if(user && bcrypt.compareSync(password, user.password)) {
-        console.log(user)
-        //req.session.user = user.username;
-        req.params.username = user.username
-        next();
+      if(tokenStrings[0].toUpperCase() === 'BEARER' && tokenStrings[1]) {
+        jwt.verify(tokenStrings[1], secrets.jwtSecret, (err, decodedToken) => {
+          
+          if(err) {
+            res.status(401).json({ message: 'error verifying token', error: err });
+          } else {
+            req.decodedToken = decodedToken;
+            next();
+          }
+        });
       } else {
-        res.status(500).json({message: "Invalid Credentials"})
+        res.status(401).json({ message: 'invalid scheme, or no token after scheme name.'});
       }
     } else {
-      res.status(403).json({message: "Provide credentials to login"})
-    }
+      res.status(401).json({ message: 'missing Authorization header'});
   }
-  catch(err) {
-    res.status(500).json(err.message);
-  }
-}
-
-module.exports = {
-    verifyLoggedUser,
-    createCookie
 };
