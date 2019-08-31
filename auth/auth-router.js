@@ -1,51 +1,63 @@
 const router = require('express').Router();
 const bcrypt = require('bcrypt');
-const db = require('../database/dbUsers');
-const authmiddleware = require('./authenticate-middleware');
+const jwt = require('jsonwebtoken');
+const secrets = require('./config/secrets');
+
+const Users = require('./auth-model');
 
 router.post('/register', (req, res) => {
-  // implement registration
-  const newuserName = req.body;
+   // implement registration
+   let user = req.body;
+   const hash = bcrypt.hashSync(user.password, 10);
+   user.password = hash;
 
-  if (newuserName.username && newuserName.password) {
-    const [verifyUser] = await db.findByUsername(newuserName.username);
-
-    if(verifyUser) {
-      res.status(403).json({message: `The username ${verifyUser.username} is already registered`})
-    } else {
-      try {
-        const myhash = bcrypt.hashSync(newuserName.password, 10);
-        newuserName.password = myhash;
-        const insertedUser = await db.add(newuserName)
-        res.status(201).json(insertedUser);
-      }
-      catch(err) {
-        res.status(500).json('There was a problem with your request', err.message);
-      }
-    }
-  } else {
-    res.status(403).json({ message: 'Provide username and password for registration'});
-  }
+   Users.add(user)
+    .then(saved => {
+      res.status(201).json(saved);
+    })
+    .catch(err => {
+      res.status(500).json(err);
+    });
 });
+ 
 
-router.post('/login', authmiddleware.createCoookie, async (req, res) => {
+router.post('/login', (req, res) => {
   // implement login
-  try {
-    res.status(200).json({message: `Welcome ${req.params.username}`})
-  }
-  catch (err) {
-    res.status(500).json(err.message);
-  }
+  let { username, password } = req.body;
+
+  Users.findBy({ username })
+    .first()
+    .then(user => {
+      if(user && bcrypt.compareSync(password, user.password)) {
+        const token = genToken(user);
+        res.status(200).json({ 
+          message: `Welcome ${user.username}!`,
+          token
+        });
+      } else {
+        res.status(401).json({ message: 'Invalid Credentials '});
+      }
+    })
+    .catch(err => {
+      res.status(500).json(err);
+    });
 });
 
-router.get('/users', async(req,res) => {
-  try {
-    const getall = await db.find();
-    res.status(200).json(getall);
-  }
-  catch(err) {
-    res.status(500).json(err.message)
-  }
-})
+//JWT middleware
+
+function genToken(user) {
+  const payload = {
+    subject: user.id,
+    username: user.username,
+  };
+
+  const secret = secrets.jwtSecret;
+
+  const options = {
+    expiresIn: '1h'
+  };
+
+  return jwt.sign(payload, secret, options);
+}
 
 module.exports = router;
