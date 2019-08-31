@@ -26,9 +26,9 @@
     "sqlite3": "^4.1.0"
   },
   "devDependencies": {
-    "nodemon": "^1.19.1",
-
-  "jest": 
+    "nodemon": "^1.19.1"
+  },
+  "jest": {
     "testEnvirnoment": "node"
   }
 }
